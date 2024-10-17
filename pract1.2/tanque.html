@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  
+  <meta charset="utf-8">
+  
+  <title> Transforma </title>
+  
+  <style type="text/css">
+    canvas {border: 1px solid black;}
+  </style>
+  
+  <!-- Shader de vértices -->
+  <script id="myVertexShader" type="x-shader/x-vertex">#version 300 es  
+    in vec3 VertexPosition;
+    uniform mat4 modelMatrix;
+    out     vec3 v;
+
+    void main()  {
+      gl_Position =  modelMatrix * vec4(VertexPosition, 1.0);
+      v = VertexPosition; // para colorear las caras
+    }
+  </script>
+  
+  <!-- Shader de fragmentos -->
+  <script id="myFragmentShader" type="x-shader/x-fragment">#version 300 es
+    precision mediump float;
+    
+    in  vec3 v;
+    out vec4 fragmentColor;
+
+    // cálculo simple de la normal en un fragmento
+    vec3 obtenNormal () {
+      return normalize(cross(dFdx(v),dFdy(v)));
+    }
+
+    // se utiliza la normal para asignar un color
+    // también se realiza la corrección gamma a 1.8
+    void main() {
+      fragmentColor = vec4 (pow(obtenNormal()* 0.5 + 0.5, vec3(1.0/1.8)), 1.0);
+    }
+  </script>
+  
+</head>
+
+<body>
+  
+  <canvas id="myCanvas" width="600" height="600">
+    El Navegador no soporta HTML5
+  </canvas>
+  
+  <script src = "gl-matrix-min.js"></script>
+  <script src = "primitivasG.js"></script>
+  <script src = "comun.js"></script>
+  <script src = "tanque.js"></script>
+  
+</body>
+
+</html>

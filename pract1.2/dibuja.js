@@ -3,11 +3,11 @@
 //
 
 // modelo a dibujar
-var modeloSeleccionado = cubo;
+var modeloSeleccionado = unCuadradoVC;
 
 //
 // Gobierna el ciclo de dibujado de la escena
-//ф
+//
 function drawScene() {
   
   gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);

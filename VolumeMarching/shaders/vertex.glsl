@@ -1,6 +1,6 @@
 #version 300 es
 
-uniform vec4 MousePosition;
+uniform vec4 iMouse;
 in vec3 VertexPosition;
 out vec2 uv;
 void main() {
