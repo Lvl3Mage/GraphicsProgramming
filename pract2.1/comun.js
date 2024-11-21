@@ -188,9 +188,6 @@ function draw (model) {
   }
   
 }
-function getOrthoProjectionMatrix (size = 1) {
-  return mat4.ortho(mat4.create(), -size, size, -size, size, 0.1, 100.0);
-}
 
 //
 // Obtiene la matriz de transformación de la proyección perspectiva

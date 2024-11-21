@@ -150,6 +150,7 @@ function setUniform (name, value) {
     case  9: gl.uniformMatrix3fv(ref, false, value); break;
     case  4: gl.uniform4fv(ref, value); break;
     case  3: gl.uniform3fv(ref, value); break;
+    case  2: gl.uniform2fv(ref, value); break;
     case  1: gl.uniform1f(ref, value[0]); break;
     case  undefined: gl.uniform1i(ref, value); break;
   }
@@ -187,9 +188,6 @@ function draw (model) {
     
   }
   
-}
-function getOrthoProjectionMatrix (size = 1) {
-  return mat4.ortho(mat4.create(), -size, size, -size, size, 0.1, 100.0);
 }
 
 //
@@ -265,8 +263,8 @@ function setTexture (image, texturePos) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   
   // parámetros de repetición (ccordenadas de textura mayores a uno)
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.MIRRORED_REPEAT);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
   
   // creación del mipmap
   gl.generateMipmap(gl.TEXTURE_2D);
@@ -330,7 +328,7 @@ function initHandlers() {
     lastMouseY = event.clientY;
   }, false);
   
-  canvas.addEventListener("mouseup", function() {
+  document.addEventListener("mouseup", function() {
     mouseDown = false;
   }, false);
   
@@ -362,7 +360,7 @@ function initHandlers() {
     
   }, false);
   
-  canvas.addEventListener("mousemove", function (event) {
+  document.addEventListener("mousemove", function (event) {
     
     if (!mouseDown) {
       return;
@@ -411,6 +409,10 @@ function initHandlers() {
         case "Puntos": texturaSeleccionada = 0; break;
         case "Abeja":  texturaSeleccionada = 1; break;
         case "Figura": texturaSeleccionada = 2; break;
+        case "Damas":  texturaSeleccionada = 3; break;
+        case "Emoji":  texturaSeleccionada = 4; break;
+        case "Geom":   texturaSeleccionada = 5; break;
+        case "Pirata": texturaSeleccionada = 6; break;
       } 
       requestAnimationFrame(drawScene);
     }, false);

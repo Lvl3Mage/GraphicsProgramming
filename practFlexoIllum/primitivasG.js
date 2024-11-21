@@ -82,47 +82,6 @@ var cilindro = {  // 24 vértices, 24 triángulos, 36 aristas
   "indices" : [ 12, 0, 13, 1, 14, 2, 15, 3, 16, 4, 17, 5, 18, 6, 19, 7, 20, 8, 21, 9, 22, 10, 23, 11, 12, 0]
 
 };
-var rotorBlade = {
-
-    primitiva : WebGLRenderingContext.TRIANGLE_STRIP,
-
-    "vertices" : [],
-
-    "indices" : []
-
-};
-let rotorPoints = 10;
-let leftEdge = (t) => -(t*t)/0.33333 + 0.5;
-let rightEdge = (t) => -(t*t)/0.5 - 0.5;
-let inclinationLeft = (t) => -(t*t)/0.5 + 1;
-let inclinationRight = (t) => -(t*t)/1;
-let points = [];
-for (let i = 0; i < rotorPoints; i++) {
-    let t = i / (rotorPoints - 1);
-    let y = t;
-    let z1 = inclinationLeft(t);
-    let z2 = inclinationRight(t);
-    let x1 = leftEdge(t);
-    let x2 = rightEdge(t);
-    points.push([x1, y, z1]);
-
-    if(x2 >= x1){
-        break;
-    }
-    points.push([x2, y, z2]);
-}
-
-let indices = [];
-for (let i in points) {
-    indices.push(i);
-}
-let reversedIndices = indices.slice(0, indices.length-1).reverse();
-indices = indices.concat(reversedIndices);
-
-points = points.flat();
-rotorBlade.vertices = points;
-
-rotorBlade.indices = indices;
 
 var esfera = {  // 42 vértices, 80 triángulos, 120 aristas
 

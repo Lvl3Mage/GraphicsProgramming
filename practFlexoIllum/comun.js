@@ -188,9 +188,6 @@ function draw (model) {
   }
   
 }
-function getOrthoProjectionMatrix (size = 1) {
-  return mat4.ortho(mat4.create(), -size, size, -size, size, 0.1, 100.0);
-}
 
 //
 // Obtiene la matriz de transformación de la proyección perspectiva
@@ -213,17 +210,10 @@ function getCameraMatrix() {
 
 function getRotationMatrix() {
 
-  var matResult = mat4.create();
-  var aux = radius;
-  
   radius = 0.01;
 
   // se escala por -1 en Z pq en NDC Opengl es left handed
-  matResult = concat (mat4.fromScaling (mat4.create(),[1,1,-1]), getCameraMatrix());
-
-  radius = aux;
-
-  return matResult
+  return concat (mat4.fromScaling (mat4.create(),[1,1,-1]), getCameraMatrix());
 
 }
 
@@ -347,12 +337,12 @@ function initHandlers() {
     
     if (event.shiftKey == 1) { // fovy
       
-      fovy *= Math.exp(delta)
+      fovy *= Math.exp(-delta)
       fovy = Math.max (0.1, Math.min(3.0, fovy));
       
     } else {
       
-      radius *= Math.exp(delta);
+      radius *= Math.exp(-delta);
       radius  = Math.max(Math.min(radius, 30), 0.05);
       
     }

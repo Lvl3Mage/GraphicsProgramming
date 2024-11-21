@@ -1,4 +1,3 @@
-<!--Karl Kalantarov-->
 <!DOCTYPE html>
 <html>
 
@@ -6,64 +5,56 @@
   
   <meta charset="utf-8">
   
-  <title> Zootropo </title>
+  <title> Transforma </title>
   
   <style type="text/css">
     canvas {border: 1px solid black;}
   </style>
-  
+
   <!-- Shader de vértices -->
   <script id="myVertexShader" type="x-shader/x-vertex">#version 300 es  
-    in      vec3 VertexPosition;
+    in      vec3 VertexPosition, VertexNormal;
     uniform mat4 modelViewMatrix;
     uniform mat4 projectionMatrix;
     out     vec3 v;
-    
+
     void main()  {
       gl_Position = projectionMatrix * modelViewMatrix * vec4(VertexPosition, 1.0);
-      v = (modelViewMatrix * vec4(VertexPosition,1.0)).xyz; // para colorear las caras
+      v = VertexPosition; // para colorear las caras
     }
   </script>
-  
+
   <!-- Shader de fragmentos -->
   <script id="myFragmentShader" type="x-shader/x-fragment">#version 300 es
     precision mediump float;
-    
-    in      vec3 v;
-    out     vec4 fragmentColor;
-    vec3 sunDir = vec3(1.0,1.0,1.0);
+
+    in  vec3 v;
+    out vec4 fragmentColor;
 
     // cálculo simple de la normal en un fragmento
     vec3 obtenNormal () {
       return normalize(cross(dFdx(v),dFdy(v)));
     }
-    
+
     // se utiliza la normal para asignar un color
     // también se realiza la corrección gamma a 1.8
     void main() {
-      vec3 normal = obtenNormal();
-      vec3 sunDirection = normalize(sunDir);
-      fragmentColor = vec4(vec3(dot(normal,sunDirection)),1.0);
-      //fragmentColor = vec4 (pow(obtenNormal()* 0.5 + 0.5, vec3(1.0/1.8)), 1.0);
+      fragmentColor = vec4 (pow(obtenNormal()* 0.5 + 0.5, vec3(1.0/1.8)), 1.0);
     }
   </script>
   
 </head>
 
 <body>
-
-<strong>Ángulo incrementado: </strong><label id="angulo">0</label><label>&nbsp;grados (teclas 'w' y 's' para incrementar o decrementar, respectivamente)</label>
-<strong>Espacio para </strong><label>cambiar&nbsp;modo perspectiva/ortográfico</label>
-  <br>
   
-  <canvas id="myCanvas" width="800" height="800">
+  <canvas id="myCanvas" width="600" height="600">
     El Navegador no soporta HTML5
   </canvas>
   
   <script src = "gl-matrix-min.js"></script>
   <script src = "primitivasG.js"></script>
   <script src = "comun.js"></script>
-  <script src = "zootropo.js"></script>
+  <script src = "lamp.js"></script>
   
 </body>
 
