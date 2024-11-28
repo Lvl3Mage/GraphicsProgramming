@@ -38,33 +38,38 @@ function setMaterial (M) {
 // Establece las propiedades de la fuente de luz según establece el modelo de ilumnación de Phong
 //
 function updateLight () {
-  let lightMVM = getLightMVM();
-  let point = vec3.fromValues(0,0,0);
-  let point2 = vec3.fromValues(0,0,-0.2);
-  let worldPoint = vec3.fromValues(0,0,0);
-  let worldPoint2 = vec3.fromValues(0,0,0);
-  vec3.transformMat4(worldPoint, point, lightMVM);
-  vec3.transformMat4(worldPoint2, point2, lightMVM);
-  let dir = vec3.fromValues(0,0,0);
-  let camMat = getCameraMatrix();
-  let Ep = vec3.fromValues(0,0,0);
-  let Ep2 = vec3.fromValues(0,0,0);
-  vec3.transformMat4(Ep, worldPoint, camMat);
-  vec3.transformMat4(Ep2, worldPoint2, camMat);
-  vec3.sub(dir,Ep2,Ep);
+  let lightMVM = getLightMatrix();
+  let lightCenter = vec3.fromValues(0,0,0);
+  let lightTarget = vec3.fromValues(0,0,-1);
+
+
+  let worldCenter = vec3.create();
+  let worldTarget = vec3.create();
+  vec3.transformMat4(worldCenter, lightCenter, lightMVM);
+  vec3.transformMat4(worldTarget, lightTarget, lightMVM);
+
+
+  let EyeSpaceLightDir = vec3.create();
+  let cameraMatrix = getCameraMatrix();
+  let EyeSpaceLightCenter = vec3.create();
+  let EyeSpaceLightTarget = vec3.create();
+  vec3.transformMat4(EyeSpaceLightCenter, worldCenter, cameraMatrix);
+  vec3.transformMat4(EyeSpaceLightTarget, worldTarget, cameraMatrix);
+  vec3.sub(EyeSpaceLightDir,EyeSpaceLightTarget,EyeSpaceLightCenter);
+
+
   setUniform("Light.La", [1.0, 1.0, 1.0]);
   setUniform("Light.Ld", [1.0, 1.0, 1.0]);
   setUniform("Light.Ls", [1.0, 1.0, 1.0]);
-  setUniform("Light.Lp", Ep2); // en coordenadas del ojo
-  setUniform("Light.lightDir", dir); // en coordenadas del ojo
+  setUniform("Light.Lp", EyeSpaceLightTarget);
+  setUniform("Light.lightDir", EyeSpaceLightDir);
+  setUniform("Light.lightSpotSize", [0.4, 0.4, 0.4]);
   
 }
-function getLightMVM(){
-
+function getLightMatrix(){
   let accumulativeMatrix = mat4.create();
-  mat4.fromRotation(accumulativeMatrix,-Math.PI*0.5,[1,0,0]);//rotate cone up
+  mat4.fromRotation(accumulativeMatrix,-Math.PI*0.5,[1,0,0]);
 
-  //beta rotation
   let betaMat = mat4.create();
   mat4.fromRotation(betaMat,beta, [0,0,1]);
   accumulativeMatrix = concat(accumulativeMatrix,betaMat);
@@ -72,13 +77,10 @@ function getLightMVM(){
   let baseConeScale = mat4.create();
   mat4.fromScaling(baseConeScale,[1,1,0.5]);
 
-
-  //moving the accumulativeMatrix to the end of the base cone
   let coneEndMat = mat4.create();
   mat4.fromTranslation(coneEndMat,[0,0.5,0]);
   accumulativeMatrix = concat(coneEndMat,accumulativeMatrix);
 
-  //First cylinder rotation
   let alphaRot = mat4.create();
   mat4.fromRotation(alphaRot,alfa, [0,1,0]);
   accumulativeMatrix = concat(accumulativeMatrix,alphaRot);
@@ -86,42 +88,23 @@ function getLightMVM(){
   let alphaRot2 = mat4.create();
   mat4.fromRotation(alphaRot2,-alfa*2, [0,1,0]);
 
-
-  //the scale of all the cylinders
   let cylScale = mat4.create();
   mat4.fromScaling(cylScale,[0.2,0.2,3]);
 
-
-  //the scale of all the spheres
   let sphereScale = mat4.create();
   mat4.fromScaling(sphereScale,[0.2,0.2,0.2]);
 
-  //moving the accumulative matrix to the first cylinder end
   let cylTMat = mat4.create();
   mat4.fromTranslation(cylTMat, [0,0,3]);
   accumulativeMatrix = concat(accumulativeMatrix,cylTMat);
-
-
-  //second cylinder rotation
-  //let alphaRot2 = mat4.create();
-  //mat4.fromRotation(alphaRot2,Math.sin(performance.now()*0.001), [0,1,0]);
   accumulativeMatrix = concat(accumulativeMatrix,alphaRot2);
-
-  //moving the accumulative matrix up the second cylinder (the same "cylTMat" matrix can be used for this since all the cylinders are the same length)
   accumulativeMatrix = concat(accumulativeMatrix,cylTMat);
-
-  //top cone rotation
-  //let alphaRot3 = mat4.create();
-  //mat4.fromRotation(alphaRot3,Math.sin(performance.now()*0.001), [0,1,0]);
   accumulativeMatrix = concat(accumulativeMatrix,alphaRot2);
 
-  //for positioning the top cone correctly since it is inverted by default
   let coneTranslate = mat4.create();
   mat4.fromTranslation(coneTranslate,[0,0,-1]);
   let coneRotate = mat4.create();
   mat4.fromRotation(coneRotate,Math.PI,[0,1,0]);
-
-
 
   return concat(accumulativeMatrix,coneRotate,coneTranslate);
 
@@ -131,11 +114,7 @@ function drawLamp () {
   var cameraMatrix = getCameraMatrix();
 
   setMaterial (Polished_bronze);
-  let sc = mat4.create();
-  let rot = mat4.create();
-  mat4.fromRotation(rot,3.14/2, [1,0,0]);
-  drawSphere(cameraMatrix,concat(sc,rot))
-  return;
+
   //Drawing the base plane
   let baseScale = mat4.create();
   drawPlane(cameraMatrix,baseScale);
@@ -239,7 +218,6 @@ function drawLamp () {
 
 
   setMaterial (Ruby);
-  drawPlane(cameraMatrix,concat(accumulativeMatrix,coneRotate,coneTranslate))
   //Drawing top cone
   drawCone(cameraMatrix,concat(accumulativeMatrix,coneRotate,coneTranslate));
   drawCone(cameraMatrix,concat(accumulativeMatrix,coneRotate,coneTranslate,coneInv));
@@ -248,26 +226,23 @@ function drawLamp () {
 
 
 }
-function drawCylinder(camMat, mat, caps = [true,true]){
+function drawModel(camMat,mat,model) {
   setUniform("modelViewMatrix", concat(camMat, mat));
   setUniform ("normalMatrix", getNormalMatrix(concat(camMat, mat)));
-  draw(cilindro);
+  draw(model);
+}
+function drawCylinder(camMat, mat){
+  drawModel(camMat, mat, cilindro);
 }
 function drawSphere(camMat,mat){
-  setUniform("modelViewMatrix", concat(camMat, mat));
-  setUniform ("normalMatrix", getNormalMatrix(concat(camMat, mat)));
-  draw(esfera);
+  drawModel(camMat, mat, esfera);
 
 }
 function drawCone(camMat,mat){
-  setUniform("modelViewMatrix", concat(camMat, mat));
-  setUniform ("normalMatrix", getNormalMatrix(concat(camMat, mat)));
-  draw(cono);
+  drawModel(camMat, mat, cono);
 }
 function drawPlane(camMat,mat){
-  setUniform("modelViewMatrix", concat(camMat, mat));
-  setUniform ("normalMatrix", getNormalMatrix(concat(camMat, mat)));
-  draw(plano);
+  drawModel(camMat, mat, plano);
 
 }
 
@@ -308,12 +283,14 @@ if (initWebGL()) {
   initUniformRefs("modelViewMatrix","projectionMatrix",
   "normalMatrix",                                                // NUEVO
   "Material.Ka","Material.Kd","Material.Ks","Material.shininess",// NUEVO
-  "Light.La","Light.Ld","Light.Ls","Light.Lp", "Light.lightDir");                  // NUEVO
+  "Light.La","Light.Ld","Light.Ls","Light.Lp", "Light.lightDir", "Light.lightSpotSize");                  // NUEVO
   
   initPrimitives(plano,cubo,tapa,cono,cilindro,esfera);
   
   initRendering("DEPTH_TEST");
-  initHandlers();                                               // NUEVO
+  initHandlers();
+
+  drawScene();// NUEVO
 
   
 }
