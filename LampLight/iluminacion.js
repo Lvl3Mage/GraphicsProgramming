@@ -34,29 +34,34 @@ function setMaterial (M) {
   
 }
 
-//
-// Establece las propiedades de la fuente de luz según establece el modelo de ilumnación de Phong
-//
+
+/**
+ * @description Updates the light position and direction to the lamp end using the {@link getLightMatrix} method
+ */
 function updateLight () {
-  let lightMVM = getLightMatrix();
+  //local positions
   let lightCenter = vec3.fromValues(0,0,0);
   let lightTarget = vec3.fromValues(0,0,-1);
 
+  let lightMVM = getLightMatrix();
 
+  //transform light positions to world using light matrix
   let worldCenter = vec3.create();
   let worldTarget = vec3.create();
   vec3.transformMat4(worldCenter, lightCenter, lightMVM);
   vec3.transformMat4(worldTarget, lightTarget, lightMVM);
 
 
+  //Transforming the positions to eye space
   let EyeSpaceLightDir = vec3.create();
   let cameraMatrix = getCameraMatrix();
   let EyeSpaceLightCenter = vec3.create();
   let EyeSpaceLightTarget = vec3.create();
   vec3.transformMat4(EyeSpaceLightCenter, worldCenter, cameraMatrix);
   vec3.transformMat4(EyeSpaceLightTarget, worldTarget, cameraMatrix);
-  vec3.sub(EyeSpaceLightDir,EyeSpaceLightTarget,EyeSpaceLightCenter);
 
+  //final direction calculation
+  vec3.sub(EyeSpaceLightDir,EyeSpaceLightTarget,EyeSpaceLightCenter);
 
   setUniform("Light.La", [1.0, 1.0, 1.0]);
   setUniform("Light.Ld", [1.0, 1.0, 1.0]);
@@ -66,6 +71,11 @@ function updateLight () {
   setUniform("Light.lightSpotSize", [0.4, 0.4, 0.4]);
   
 }
+
+/**
+ *
+ * @returns {mat4} a matrix representing the transformation to the end of the lamp drawn in {@link drawLamp}
+ */
 function getLightMatrix(){
   let accumulativeMatrix = mat4.create();
   mat4.fromRotation(accumulativeMatrix,-Math.PI*0.5,[1,0,0]);
@@ -250,23 +260,10 @@ function drawPlane(camMat,mat){
 // Dibujado de la escena
 //
 function drawScene() {
-
-  // Esta parte NO cambia por el hecho de haber añadido iluminación
-  var matS = mat4.create();
-  var modelViewMatrix = mat4.create();
-  var cameraMatrix = getCameraMatrix();
   
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   
   setUniform ("projectionMatrix", getPerspectiveProjectionMatrix());
-  
-  mat4.fromScaling (matS, [0.5, 0.5, 0.5]);
-  modelViewMatrix = concat (cameraMatrix, matS);
-  setUniform ("modelViewMatrix", modelViewMatrix);
-  
-  // Esta es la parte que SI que cambia ...
-  setUniform ("normalMatrix", getNormalMatrix(modelViewMatrix)); // NUEVO
-                                              // NUEVO
 
   updateLight();
   drawLamp();
