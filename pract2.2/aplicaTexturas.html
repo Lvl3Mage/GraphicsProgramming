@@ -88,7 +88,6 @@
       vec4 colorFromTexture  = texture(myTexture, texCoords);
       float paridad = mod (floor (scaledTC.s) + floor (scaledTC.t), 2.0);
 
-
       fragmentColor = vec4(mix(colorFromTexture.xyz,colorFromLighting,1.0-paridad).xyz,1.0);
     }
   </script>

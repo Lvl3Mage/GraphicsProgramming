@@ -1,6 +1,9 @@
+/// <reference path="./gl-matrix-min.js />
+
 //
 // Primer ejemplo de Iluminación con el modelo de Phong
-//
+//q
+
 var alfa = beta = 0.0;
 function initKeyboardHandler () {
   document.addEventListener("keydown",
@@ -34,30 +37,40 @@ function setMaterial (M) {
 //
 // Establece las propiedades de la fuente de luz según establece el modelo de ilumnación de Phong
 //
-function initLight () {
+function updateLight () {
   let lightMVM = getLightMVM();
-  let point =
+  let point = vec3.fromValues(0,0,0);
+  let point2 = vec3.fromValues(0,0,-0.2);
+  let worldPoint = vec3.fromValues(0,0,0);
+  let worldPoint2 = vec3.fromValues(0,0,0);
+  vec3.transformMat4(worldPoint, point, lightMVM);
+  vec3.transformMat4(worldPoint2, point2, lightMVM);
+  let dir = vec3.fromValues(0,0,0);
+  let camMat = getCameraMatrix();
+  let Ep = vec3.fromValues(0,0,0);
+  let Ep2 = vec3.fromValues(0,0,0);
+  vec3.transformMat4(Ep, worldPoint, camMat);
+  vec3.transformMat4(Ep2, worldPoint2, camMat);
+  vec3.sub(dir,Ep2,Ep);
   setUniform("Light.La", [1.0, 1.0, 1.0]);
   setUniform("Light.Ld", [1.0, 1.0, 1.0]);
   setUniform("Light.Ls", [1.0, 1.0, 1.0]);
-  setUniform("Light.Lp", [0.0, 0.0, 0.0]); // en coordenadas del ojo
+  setUniform("Light.Lp", Ep2); // en coordenadas del ojo
+  setUniform("Light.lightDir", dir); // en coordenadas del ojo
   
 }
 function getLightMVM(){
 
-  var cameraMatrix = getCameraMatrix();
-
-  //This matrix will progressively accumulate the transforms done to the primitives
-  //You can kind of think of this as a "turtle" that is moving with every transformation and helps us draw everything in a connected way
-  //The accumulative matrix does not include scaling so that our model does not get progressively distorted
   let accumulativeMatrix = mat4.create();
-
   mat4.fromRotation(accumulativeMatrix,-Math.PI*0.5,[1,0,0]);//rotate cone up
 
   //beta rotation
   let betaMat = mat4.create();
   mat4.fromRotation(betaMat,beta, [0,0,1]);
   accumulativeMatrix = concat(accumulativeMatrix,betaMat);
+
+  let baseConeScale = mat4.create();
+  mat4.fromScaling(baseConeScale,[1,1,0.5]);
 
 
   //moving the accumulativeMatrix to the end of the base cone
@@ -73,6 +86,15 @@ function getLightMVM(){
   let alphaRot2 = mat4.create();
   mat4.fromRotation(alphaRot2,-alfa*2, [0,1,0]);
 
+
+  //the scale of all the cylinders
+  let cylScale = mat4.create();
+  mat4.fromScaling(cylScale,[0.2,0.2,3]);
+
+
+  //the scale of all the spheres
+  let sphereScale = mat4.create();
+  mat4.fromScaling(sphereScale,[0.2,0.2,0.2]);
 
   //moving the accumulative matrix to the first cylinder end
   let cylTMat = mat4.create();
@@ -100,7 +122,8 @@ function getLightMVM(){
   mat4.fromRotation(coneRotate,Math.PI,[0,1,0]);
 
 
-  return concat(cameraMatrix,accumulativeMatrix,coneRotate,coneTranslate);
+
+  return concat(accumulativeMatrix,coneRotate,coneTranslate);
 
 }
 function drawLamp () {
@@ -108,9 +131,15 @@ function drawLamp () {
   var cameraMatrix = getCameraMatrix();
 
   setMaterial (Polished_bronze);
+  let sc = mat4.create();
+  let rot = mat4.create();
+  mat4.fromRotation(rot,3.14/2, [1,0,0]);
+  drawSphere(cameraMatrix,concat(sc,rot))
+  return;
   //Drawing the base plane
   let baseScale = mat4.create();
   drawPlane(cameraMatrix,baseScale);
+
 
   //inverted so it is visible from below (optional but I like it)
   mat4.fromScaling(baseScale,[15,15,-15]);
@@ -120,7 +149,6 @@ function drawLamp () {
   //You can kind of think of this as a "turtle" that is moving with every transformation and helps us draw everything in a connected way
   //The accumulative matrix does not include scaling so that our model does not get progressively distorted
   let accumulativeMatrix = mat4.create();
-
   mat4.fromRotation(accumulativeMatrix,-Math.PI*0.5,[1,0,0]);//rotate cone up
 
   //beta rotation
@@ -211,28 +239,34 @@ function drawLamp () {
 
 
   setMaterial (Ruby);
+  drawPlane(cameraMatrix,concat(accumulativeMatrix,coneRotate,coneTranslate))
   //Drawing top cone
   drawCone(cameraMatrix,concat(accumulativeMatrix,coneRotate,coneTranslate));
   drawCone(cameraMatrix,concat(accumulativeMatrix,coneRotate,coneTranslate,coneInv));
 
   return concat(accumulativeMatrix,coneRotate,coneTranslate);
 
+
 }
 function drawCylinder(camMat, mat, caps = [true,true]){
   setUniform("modelViewMatrix", concat(camMat, mat));
+  setUniform ("normalMatrix", getNormalMatrix(concat(camMat, mat)));
   draw(cilindro);
 }
 function drawSphere(camMat,mat){
   setUniform("modelViewMatrix", concat(camMat, mat));
+  setUniform ("normalMatrix", getNormalMatrix(concat(camMat, mat)));
   draw(esfera);
 
 }
 function drawCone(camMat,mat){
   setUniform("modelViewMatrix", concat(camMat, mat));
+  setUniform ("normalMatrix", getNormalMatrix(concat(camMat, mat)));
   draw(cono);
 }
 function drawPlane(camMat,mat){
   setUniform("modelViewMatrix", concat(camMat, mat));
+  setUniform ("normalMatrix", getNormalMatrix(concat(camMat, mat)));
   draw(plano);
 
 }
@@ -241,7 +275,7 @@ function drawPlane(camMat,mat){
 // Dibujado de la escena
 //
 function drawScene() {
-  
+
   // Esta parte NO cambia por el hecho de haber añadido iluminación
   var matS = mat4.create();
   var modelViewMatrix = mat4.create();
@@ -259,6 +293,7 @@ function drawScene() {
   setUniform ("normalMatrix", getNormalMatrix(modelViewMatrix)); // NUEVO
                                               // NUEVO
 
+  updateLight();
   drawLamp();
   
 }
@@ -273,14 +308,12 @@ if (initWebGL()) {
   initUniformRefs("modelViewMatrix","projectionMatrix",
   "normalMatrix",                                                // NUEVO
   "Material.Ka","Material.Kd","Material.Ks","Material.shininess",// NUEVO
-  "Light.La","Light.Ld","Light.Ls","Light.Lp");                  // NUEVO
+  "Light.La","Light.Ld","Light.Ls","Light.Lp", "Light.lightDir");                  // NUEVO
   
   initPrimitives(plano,cubo,tapa,cono,cilindro,esfera);
   
   initRendering("DEPTH_TEST");
-  initHandlers();
-  initLight();                                                   // NUEVO
-  
-  requestAnimationFrame(drawScene);
+  initHandlers();                                               // NUEVO
+
   
 }
