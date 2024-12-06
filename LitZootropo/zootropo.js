@@ -10,7 +10,6 @@ let fanHeight = 2;
 let orthoMode = false;
 
 function drawZootropo() {
-
 	var matYR = mat4.create();
 	var matYR2 = mat4.create();
 	var matS = mat4.create();
@@ -34,6 +33,11 @@ function drawFan(mat, t) {
 	mat = drawFanBase(mat);
 	mat = drawFanTop(mat, t);
 	drawRotor(mat, t);
+}
+function switchToTexture(textureId, uniformName) {
+	setUniform(uniformName, 3);
+	gl.activeTexture(gl.TEXTURE3);
+	gl.bindTexture(gl.TEXTURE_2D, texturesId[textureId]);
 }
 
 function drawFanTop(mat, t) {
@@ -103,6 +107,7 @@ function drawBlades(mat, amount) {
 	for (let i = 0; i < amount; i++) {
 		mat4.fromZRotation(bladeRotation, bladeAngle * i);
 		drawModel(rotorBlade,concat(mat, bladeRotation, bladeOffset, bladeScale));
+		drawModel(rotorBladeInverse,concat(mat, bladeRotation, bladeOffset, bladeScale));
 	}
 
 
@@ -158,7 +163,14 @@ function drawScene() {
 	    setUniform("projectionMatrix", getPerspectiveProjectionMatrix());
 
 	}
-
+	setMaterial(Glow);
+	let light = getLightMatrix();
+	let cameraMatrix = getCameraMatrix();
+	drawModel(cono,concat(cameraMatrix,light, mat4.fromScaling(mat4.create(),[0.1,-0.1,0.1])))
+	drawModel(cono,concat(cameraMatrix,light, mat4.fromScaling(mat4.create(),[0.1,0.1,0.1])))
+	setMaterial(Tin);
+	updateLight();
+	switchToTexture(0,"albedoTexture");
 	drawZootropo();
 
 }
@@ -185,6 +197,53 @@ function initKeyboardHandler() {
 	);
 
 }
+function getLightMatrix() {
+	return concat(
+		mat4.fromYRotation(mat4.create(),Math.PI/4*performance.now()*0.001),
+		mat4.fromXRotation(mat4.create(),-Math.PI/6),
+		mat4.fromTranslation(mat4.create(),[0,0,1.5])
+	);
+
+}
+function updateLight () {
+	//local positions
+	let lightCenter = vec3.fromValues(0,0,0);
+	let lightTarget = vec3.fromValues(0,0,1);
+	let lightMVM = getLightMatrix();
+	//transform light positions to world using light matrix
+	let worldCenter = vec3.create();
+	let worldTarget = vec3.create();
+	vec3.transformMat4(worldCenter, lightCenter, lightMVM);
+	vec3.transformMat4(worldTarget, lightTarget, lightMVM);
+
+
+	//Transforming the positions to eye space
+	let EyeSpaceLightDir = vec3.create();
+	let cameraMatrix = getCameraMatrix();
+	let EyeSpaceLightCenter = vec3.create();
+	let EyeSpaceLightTarget = vec3.create();
+	vec3.transformMat4(EyeSpaceLightCenter, worldCenter, cameraMatrix);
+	vec3.transformMat4(EyeSpaceLightTarget, worldTarget, cameraMatrix);
+
+	//final direction calculation
+	vec3.sub(EyeSpaceLightDir,EyeSpaceLightTarget,EyeSpaceLightCenter);
+
+	setUniform("Light.La", [1.0, 1.0, 1.0]);
+	setUniform("Light.Ld", [1.0, 1.0, 1.0]);
+	setUniform("Light.Ls", [1.0, 1.0, 1.0]);
+	setUniform("Light.Lp", EyeSpaceLightTarget);
+	setUniform("Light.lightDir", EyeSpaceLightDir);
+	setUniform("Light.lightSpotSize", [0.05]);
+
+}
+function setMaterial (M) {
+
+	setUniform ("Material.Ka",        M.ambient);
+	setUniform ("Material.Kd",        M.diffuse);
+	setUniform ("Material.Ks",        M.specular);
+	setUniform ("Material.shininess", M.shininess);
+
+}
 
 if (initWebGL()) {
 
@@ -192,9 +251,10 @@ if (initWebGL()) {
 	initAttributesRefs("VertexPosition", "VertexNormal","VertexTexcoords");
 	initUniformRefs("modelViewMatrix", "normalMatrix","projectionMatrix",
 		"Material.Ka","Material.Kd","Material.Ks","Material.shininess",
-		"Light.La","Light.Ld","Light.Ls","Light.Lp");
+		"Light.La","Light.Ld","Light.Ls","Light.Lp","Light.lightDir", "Light.lightSpotSize","albedoTexture");
 
-	initPrimitives(plano, cubo, tapa, cono, cilindro, esfera, rotorBlade);
+	initPrimitives(plano, cubo, tapa, cono, cilindro, esfera, rotorBlade,rotorBladeInverse);
+	initTextures("geom.png");
 	initRendering("DEPTH_TEST", "CULL_FACE");
 
 	gl.clearColor(0.15, 0.25, 0.35, 1.0);

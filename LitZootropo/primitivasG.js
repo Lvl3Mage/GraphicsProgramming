@@ -219,6 +219,7 @@ let rightEdge = (t) => -(t*t)/0.5 - 0.5;
 let inclinationLeft = (t) => -(t*t)/0.5 + 1;
 let inclinationRight = (t) => -(t*t)/1;
 let points = [];
+let pastZ = 0;
 for (let i = 0; i < rotorPoints; i++) {
     let t = i / (rotorPoints - 1);
     let y = t;
@@ -226,22 +227,45 @@ for (let i = 0; i < rotorPoints; i++) {
     let z2 = inclinationRight(t);
     let x1 = leftEdge(t);
     let x2 = rightEdge(t);
-    let normal = vec3.fromValues(0,1,0);
-    points.push([x1, y, z1,0,1,0,x1,z1]);
+    let n1 = vec3.fromValues(0,-(z1-1)/2,-1);
+    vec3.normalize(n1,n1);
+    points.push([x1, y, z1,n1[0],n1[1],n1[2],x1,z1]);
+    pastZ = y;
 
     if(x2 >= x1){
         break;
     }
-    points.push([x2, y, z2,0,1,0,x2,z2]);}
+    let n2 = vec3.fromValues(0,-(z2-1)/2,-1);
+    vec3.normalize(n2,n2);
+    points.push([x2, y, z2,n2[0],n2[1],n2[2],x2,z2]);
+}
 
 let indices = [];
 for (let i in points) {
     indices.push(i);
 }
-let reversedIndices = indices.slice(0, indices.length-1).reverse();
-indices = indices.concat(reversedIndices);
-
-points = points.flat();
-rotorBlade.vertices = points;
+rotorBlade.vertices =  points.slice().flat();
 
 rotorBlade.indices = indices;
+
+
+let reversePoints = points.slice().reverse();
+for(let i in reversePoints)
+{
+    let p = reversePoints[i];
+    let reverseN = vec3.fromValues(-p[3],-p[4],-p[5]);
+    reversePoints[i] = [p[0],p[1],p[2],reverseN[0],reverseN[1],reverseN[2],p[6],p[7]];
+}
+let reverseIndices = [];
+for(let i in points)
+{
+    reverseIndices.push(i);
+}
+console.log(reverseIndices);
+
+
+let rotorBladeInverse = {
+    primitiva : WebGLRenderingContext.TRIANGLE_STRIP,
+    vertices : reversePoints.slice().flat(),
+    indices : reverseIndices
+};
