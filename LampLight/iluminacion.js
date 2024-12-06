@@ -282,7 +282,7 @@ if (initWebGL()) {
   "Material.Ka","Material.Kd","Material.Ks","Material.shininess",// NUEVO
   "Light.La","Light.Ld","Light.Ls","Light.Lp", "Light.lightDir", "Light.lightSpotSize");                  // NUEVO
   
-  initPrimitives(plano,cubo,tapa,cono,cilindro,esfera);
+  initPrimitives(plano,cubo,tapa,cono,cilindro,esfera,rotorBlade);
   
   initRendering("DEPTH_TEST");
   initHandlers();

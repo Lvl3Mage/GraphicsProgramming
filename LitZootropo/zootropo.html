@@ -1,0 +1,115 @@
+<!--Karl Kalantarov-->
+<!DOCTYPE html>
+<html>
+
+<head>
+  
+  <meta charset="utf-8">
+  
+  <title> Zootropo </title>
+  
+  <style type="text/css">
+    canvas {border: 1px solid black;}
+  </style>
+  
+  <!-- Shader de vértices -->
+  <script id="myVertexShader" type="x-shader/x-vertex">#version 300 es  
+     in        vec3 VertexPosition;
+     in        vec3 VertexNormal;
+     in        vec2 VertexTexcoords;
+     out       vec3 N, ec;
+     out       vec2 texCoords;
+     uniform   mat4 projectionMatrix;
+     uniform   mat4 modelViewMatrix;
+     uniform   mat3 normalMatrix;
+
+     void main()  {
+       N               = normalize(normalMatrix * VertexNormal);
+       vec4 ecPosition = modelViewMatrix * vec4(VertexPosition,1.0);
+       ec              = vec3(ecPosition);
+       gl_Position     = projectionMatrix * ecPosition;
+       texCoords       = VertexTexcoords;
+     }
+  </script>
+  
+  <!-- Shader de fragmentos -->
+  <script id="myFragmentShader" type="x-shader/x-fragment">#version 300 es
+  precision mediump float;
+
+  in  vec3 N, ec;
+  in  vec2 texCoords;
+  out vec4 fragmentColor;
+
+  struct LightData {
+    vec3 La;         // Ambiente
+    vec3 Ld;         // Difusa
+    vec3 Ls;         // Especular
+    vec3 Lp;         // Posición en coordenadas del ojo
+  };
+  uniform LightData Light;
+
+  struct MaterialData {
+    vec3 Ka;         // Ambiente
+    vec3 Kd;         // Difusa
+    vec3 Ks;         // Especular
+    float shininess; // Exponente para el Brillo
+  };
+  uniform MaterialData Material;
+
+  uniform sampler2D myTexture;
+
+  vec3 phong (vec3 N, vec3 L, vec3 V) {
+
+    vec3  ambient  = Material.Ka * Light.La;
+    vec3  diffuse  = vec3(0.0);
+    vec3  specular = vec3(0.0);
+
+    float NdotL    = dot (N,L);
+
+    if (NdotL > 0.0) {
+
+    vec3  R          = reflect(-L, N);;
+    float RdotV_n    = pow(max(0.0, dot(R,V)), Material.shininess);
+
+    diffuse  = NdotL   * (Light.Ld * Material.Kd);
+    specular = RdotV_n * (Light.Ls * Material.Ks);
+
+    }
+    return (ambient + diffuse + specular);
+  }
+
+  void main() {
+  vec3 n = normalize(N);
+  vec3 L = normalize(Light.Lp - ec);
+  vec3 V = normalize(-ec);
+
+
+  vec2 scaledTC = texCoords*8.0;
+  vec3 colorFromLighting = phong(n,L,V);
+  vec4 colorFromTexture  = texture(myTexture, texCoords);
+  float paridad = mod (floor (scaledTC.s) + floor (scaledTC.t), 2.0);
+
+  fragmentColor = vec4(n,1.0);
+  }
+  </script>
+  
+</head>
+
+<body>
+
+<strong>Ángulo incrementado: </strong><label id="angulo">0</label><label>&nbsp;grados (teclas 'w' y 's' para incrementar o decrementar, respectivamente)</label>
+<strong>Espacio para </strong><label>cambiar&nbsp;modo perspectiva/ortográfico</label>
+  <br>
+  
+  <canvas id="myCanvas" width="800" height="800">
+    El Navegador no soporta HTML5
+  </canvas>
+  
+  <script src = "gl-matrix-min.js"></script>
+  <script src = "primitivasG.js"></script>
+  <script src = "comun.js"></script>
+  <script src = "zootropo.js"></script>
+  
+</body>
+
+</html>
