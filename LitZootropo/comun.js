@@ -37,37 +37,48 @@ function getWebGLContext() {
 // Compila los shaders de vértices y fragmentos, los enlaza y crea un programa
 // También instala el programa ejecutable en la GPU
 // Recuerda que los fuentes de los Shaders están en el archivo .html
-// 
-function initShaders(vertexSh, fragmentSh) {
-
-  var vertexShader = gl.createShader(gl.VERTEX_SHADER);
-  let vertText = document.getElementById(vertexSh).text;
-  vertText = vertText.trim();
-  gl.shaderSource(vertexShader, vertText);
-  gl.compileShader(vertexShader);
-  if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
-    alert(gl.getShaderInfoLog(vertexShader));
+//
+let shaderLookup = {};
+function initShaders(type, ...shaders){
+  for(let shaderId of shaders){
+    let compiled = initShader(shaderId,type);
+    if(compiled == null){
+      console.warn(`Skipping shader ${shaderId}`);
+      continue;
+    }
+    shaderLookup[shaderId] = compiled;
+  }
+}
+function initShader(shaderId, shaderType){
+  let shader = gl.createShader(shaderType);
+  let shaderDom = document.getElementById(shaderId);
+  if(shaderDom == null){
+    console.error(`No shader script found with id ${shaderId}`);
     return null;
   }
-
-  var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-  let fragText = document.getElementById(fragmentSh).text;
-  fragText = fragText.trim();
-  gl.shaderSource(fragmentShader, fragText);
-  gl.compileShader(fragmentShader);
-  if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
-    alert(gl.getShaderInfoLog(fragmentShader));
+  let shaderText = shaderDom.text.trim();
+  gl.shaderSource(shader,shaderText);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.error(gl.getShaderInfoLog(shader));
     return null;
   }
-
+  return shader;
+}
+function useShaders(vertexShaderId,fragmentShaderId){
+  if(shaderLookup[vertexShaderId] === undefined){
+    console.error(`${vertexShaderId} not defined`);
+  }
+  if(shaderLookup[fragmentShaderId] === undefined){
+    console.error(`${fragmentShaderId} not defined`);
+  }
   program = gl.createProgram();
-  gl.attachShader(program, vertexShader);
-  gl.attachShader(program, fragmentShader);
+  gl.attachShader(program, shaderLookup[vertexShaderId]);
+  gl.attachShader(program, shaderLookup[fragmentShaderId]);
 
   gl.linkProgram(program);
 
   gl.useProgram(program);
-
 }
 
 function initAttributesRefs (...attrs) {

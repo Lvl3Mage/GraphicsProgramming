@@ -34,8 +34,8 @@ function drawFan(mat, t) {
 	mat = drawFanTop(mat, t);
 	drawRotor(mat, t);
 }
-function switchToTexture(textureId, uniformName) {
-	setUniform(uniformName, 3);
+function setTextureAttrib(textureId, attribName) {
+	setUniform(attribName, 3);
 	gl.activeTexture(gl.TEXTURE3);
 	gl.bindTexture(gl.TEXTURE_2D, texturesId[textureId]);
 }
@@ -164,13 +164,15 @@ function drawScene() {
 
 	}
 	setMaterial(Glow);
-	let light = getLightMatrix();
+	let time = performance.now()*0.001;
+	let light = getOrbitLight(1.5, Math.PI/4*time, -Math.PI/6, 0.5 +Math.sin(time*3)*0.2);
 	let cameraMatrix = getCameraMatrix();
 	drawModel(cono,concat(cameraMatrix,light, mat4.fromScaling(mat4.create(),[0.1,-0.1,0.1])))
 	drawModel(cono,concat(cameraMatrix,light, mat4.fromScaling(mat4.create(),[0.1,0.1,0.1])))
 	setMaterial(Tin);
-	updateLight();
-	switchToTexture(0,"albedoTexture");
+	updateLight("Light", light);
+	setTextureAttrib(0,"albedoTexture");
+	drawModel(plano, concat(cameraMatrix,mat4.fromScaling(mat4.create(),[5,5,5])));
 	drawZootropo();
 
 }
@@ -197,24 +199,24 @@ function initKeyboardHandler() {
 	);
 
 }
-function getLightMatrix() {
+function getOrbitLight(distance, rotation, inclination, elevation) {
 	return concat(
-		mat4.fromYRotation(mat4.create(),Math.PI/4*performance.now()*0.001),
-		mat4.fromXRotation(mat4.create(),-Math.PI/6),
-		mat4.fromTranslation(mat4.create(),[0,0,1.5])
+		mat4.fromYRotation(mat4.create(),rotation),
+		mat4.fromTranslation(mat4.create(),[0,elevation,0]),
+		mat4.fromXRotation(mat4.create(),inclination),
+		mat4.fromTranslation(mat4.create(),[0,0,distance])
 	);
 
 }
-function updateLight () {
+function updateLight(attribName, mat) {
 	//local positions
 	let lightCenter = vec3.fromValues(0,0,0);
 	let lightTarget = vec3.fromValues(0,0,1);
-	let lightMVM = getLightMatrix();
 	//transform light positions to world using light matrix
 	let worldCenter = vec3.create();
 	let worldTarget = vec3.create();
-	vec3.transformMat4(worldCenter, lightCenter, lightMVM);
-	vec3.transformMat4(worldTarget, lightTarget, lightMVM);
+	vec3.transformMat4(worldCenter, lightCenter, mat);
+	vec3.transformMat4(worldTarget, lightTarget, mat);
 
 
 	//Transforming the positions to eye space
@@ -228,12 +230,13 @@ function updateLight () {
 	//final direction calculation
 	vec3.sub(EyeSpaceLightDir,EyeSpaceLightTarget,EyeSpaceLightCenter);
 
-	setUniform("Light.La", [1.0, 1.0, 1.0]);
-	setUniform("Light.Ld", [1.0, 1.0, 1.0]);
-	setUniform("Light.Ls", [1.0, 1.0, 1.0]);
-	setUniform("Light.Lp", EyeSpaceLightTarget);
-	setUniform("Light.lightDir", EyeSpaceLightDir);
-	setUniform("Light.lightSpotSize", [0.05]);
+	setUniform(`${attribName}.La`, [1.0, 1.0, 1.0]);
+	setUniform(`${attribName}.Ld`, [1.0, 1.0, 1.0]);
+	setUniform(`${attribName}.Ls`, [1.0, 1.0, 1.0]);
+	setUniform(`${attribName}.Lp`, EyeSpaceLightTarget);
+	setUniform(`${attribName}.lightDir`, EyeSpaceLightDir);
+	setUniform(`${attribName}.lightSpotSize`, [0.1]);
+	setUniform(`${attribName}.lightEdgeSmoothness`, [0.15]);
 
 }
 function setMaterial (M) {
@@ -244,14 +247,27 @@ function setMaterial (M) {
 	setUniform ("Material.shininess", M.shininess);
 
 }
-
+function getLightAttribs(attribName){
+	return [
+		`${attribName}.Ld`,
+		`${attribName}.La`,
+		`${attribName}.Ls`,
+		`${attribName}.Lp`,
+		`${attribName}.lightDir`,
+		`${attribName}.lightSpotSize`,
+		`${attribName}.lightEdgeSmoothness`,
+	];
+}
 if (initWebGL()) {
 
-	initShaders("myVertexShader", "myFragmentShader");
+	initShaders(gl.VERTEX_SHADER,"baseVertex");
+	initShaders(gl.FRAGMENT_SHADER,"litFrag");
+	useShaders("baseVertex", "litFrag")
 	initAttributesRefs("VertexPosition", "VertexNormal","VertexTexcoords");
 	initUniformRefs("modelViewMatrix", "normalMatrix","projectionMatrix",
 		"Material.Ka","Material.Kd","Material.Ks","Material.shininess",
-		"Light.La","Light.Ld","Light.Ls","Light.Lp","Light.lightDir", "Light.lightSpotSize","albedoTexture");
+		...getLightAttribs("Light"),
+		"albedoTexture");
 
 	initPrimitives(plano, cubo, tapa, cono, cilindro, esfera, rotorBlade,rotorBladeInverse);
 	initTextures("geom.png");

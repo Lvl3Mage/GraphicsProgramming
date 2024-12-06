@@ -261,7 +261,6 @@ for(let i in points)
 {
     reverseIndices.push(i);
 }
-console.log(reverseIndices);
 
 
 let rotorBladeInverse = {
