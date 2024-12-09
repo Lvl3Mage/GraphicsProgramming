@@ -18,14 +18,17 @@
     in vec3 VertexPosition;
     in vec3 VertexNormal;
     in vec2 VertexTexcoords;
-    out vec3 N, ec;
+    out vec3 N, ec, scaledObjPos, objNormal;
     out vec2 texCoords;
     uniform mat4 projectionMatrix;
     uniform mat4 modelViewMatrix;
+    uniform mat4 scaleMatrix;
     uniform mat3 normalMatrix;
 
     void main() {
       N = normalize(normalMatrix * VertexNormal);
+      scaledObjPos = (scaleMatrix * vec4(VertexPosition, 1.0)).xyz;
+      objNormal =VertexNormal;
       vec4 ecPosition = modelViewMatrix * vec4(VertexPosition, 1.0);
       ec = vec3(ecPosition);
       gl_Position = projectionMatrix * ecPosition;
@@ -38,7 +41,7 @@
     #version 300 es
     precision mediump float;
 
-    in vec3 N, ec;
+    in vec3 N, ec, scaledObjPos,objNormal;
     in vec2 texCoords;
     out vec4 fragmentColor;
 
@@ -51,7 +54,8 @@
       float lightSpotSize;
       float lightEdgeSmoothness;
     };
-    uniform LightData Light;
+    uniform LightData Light1;
+    uniform LightData Light2;
 
     struct MaterialData {
       vec3 Ka;         // Ambiente
@@ -62,6 +66,7 @@
     uniform MaterialData Material;
 
     uniform sampler2D albedoTexture;
+    uniform sampler2D normalMap;
     float invMix(float a,float b,float t){
       return (t-a) / (b-a);
     }
@@ -82,23 +87,193 @@
       }
       return (ambient + diffuse + specular);
     }
-    vec3 ProcessLight(LightData light, vec3 N, vec3 ec, vec3 albedo, MaterialData mat){
-
-      vec3 L = normalize(light.Lp - ec);
-      vec3 V = normalize(-ec);
+    float GetLightAttenuation(LightData light, vec3 L){
       float attenuation = dot(light.lightDir, L);
       attenuation = invMix((1.0-light.lightSpotSize),1.0,attenuation);
       attenuation = clamp(attenuation, 0.0, 1.0);
       attenuation = smoothstep(0.5 - light.lightEdgeSmoothness,0.5 + light.lightEdgeSmoothness,attenuation);
+      return attenuation;
+    }
+    vec3 ProcessLight(LightData light, vec3 N, vec3 ec, vec3 albedo, MaterialData mat){
+
+      vec3 L = normalize(light.Lp - ec);
+      vec3 V = normalize(-ec);
+      float attenuation = GetLightAttenuation(light, L);
       return phong(N,L,V,attenuation,albedo,light,mat);
     }
+    vec4 Triplanar(sampler2D tex, vec3 pos, vec3 normal, float k){
+      vec4 xy = texture(tex, pos.xy);
+      vec4 xz = texture(tex, pos.xz);
+      vec4 zy = texture(tex, pos.zy);
+      vec3 weights = normal;
 
-    void main() {
-      vec3 n = normalize(N);
-
-      vec3 albedo = texture(albedoTexture, texCoords).rgb;
-      fragmentColor = vec4(ProcessLight(Light,n,ec,albedo,Material), 1.0);
+      weights = abs(weights);
+      weights.x = pow(weights.x,k);
+      weights.y = pow(weights.y,k);
+      weights.z = pow(weights.z,k);
+      weights = weights / (weights.x+weights.y+weights.z);
+      return xy*weights.z + xz * weights.y +zy*weights.x;
     }
+    void main() {
+      vec3 texNormals = Triplanar(normalMap,scaledObjPos,objNormal,0.5).rgb;
+      texNormals.x -= 0.5;
+      texNormals.y -= 0.5;
+      vec3 normal = normalize(N);
+      vec3 Q1 = dFdx(ec);
+      vec3 Q2 = dFdy(ec);
+      vec2 st1 = dFdx(texCoords);
+      vec2 st2 = dFdy(texCoords);
+
+      vec3 N = normalize(normal);
+      vec3 T = normalize(Q1 * st2.t - Q2 * st1.t);
+      vec3 B = -normalize(cross(N, T));
+      vec3 albedo = Triplanar(albedoTexture,scaledObjPos,objNormal,0.5).rgb;
+      float normalStr = 2.0;
+      vec3 n = normalize(N*texNormals.z + T *texNormals.x*normalStr + T *texNormals.y*normalStr);
+      fragmentColor = vec4(0.0);
+      fragmentColor += vec4(ProcessLight(Light1,n,ec,albedo,Material), 1.0)*0.5;
+      fragmentColor += vec4(ProcessLight(Light2,n,ec,albedo,Material), 1.0)*0.5;
+      fragmentColor.a = 1.0;
+    }
+  </script>
+  <script id="bricks" type="x-shader/x-fragment">
+      #version 300 es
+    precision mediump float;
+      struct LightData {
+        vec3 La;         // Ambiente
+        vec3 Ld;         // Difusa
+        vec3 Ls;         // Especular
+        vec3 Lp;         // Posición en coordenadas del ojo
+        vec3 lightDir;
+        float lightSpotSize;
+        float lightEdgeSmoothness;
+      };
+      uniform mat3 normalMatFrag;
+      uniform LightData Light1;
+      uniform LightData Light2;
+
+      in vec3 N, ec, scaledObjPos, objNormal;
+      in vec2 texCoords;
+      out vec4 fragmentColor;
+      uniform float time;
+      vec3 randomVector(vec3 UV, float offset) {
+        mat3 m = mat3(15.27, 47.63, 21.12,
+        99.41, 89.98, 78.56,
+        44.77, 12.34, 98.76);
+        UV = fract(sin(m * UV) * 46839.32);
+        return vec3(
+        sin(UV.y * offset) * 0.5 + 0.5,
+        cos(UV.x * offset) * 0.5 + 0.5,
+        sin(UV.z * offset) * 0.5 + 0.5
+        );
+      }
+      float invMix(float a,float b,float t){
+        return (t-a) / (b-a);
+      }
+      float GetLightAttenuation(LightData light, vec3 L){
+
+        float attenuation = dot(light.lightDir, L);
+        attenuation = invMix((1.0-light.lightSpotSize),1.0,attenuation);
+        attenuation = clamp(attenuation, 0.0, 1.0);
+        attenuation = smoothstep(0.5 - light.lightEdgeSmoothness,0.5 + light.lightEdgeSmoothness,attenuation);
+        return attenuation;
+      }
+
+
+      void Voronoi_3D(vec3 UV, float AngleOffset, float CellDensity,
+      out float CenterDistance, out vec3 CenterDerivative,
+      out float EdgeDistance, out vec3 EdgeDerivative) {
+
+        ivec3 cell = ivec3(floor(UV * CellDensity));
+        vec3 posInCell = fract(UV * CellDensity);
+
+        float primaryDistanceSqr = 8.0;
+        vec3 primaryDelta;
+
+        for (int i = -1; i <= 1; i++) {
+          for (int j = -1; j <= 1; j++) {
+            for (int k = -1; k <= 1; k++) {
+              vec3 delta = (vec3(i, j, k) + randomVector(vec3(cell) + vec3(i, j, k), AngleOffset)) - posInCell;
+              float sqrDistance = dot(delta, delta);
+              if (sqrDistance < primaryDistanceSqr) {
+                primaryDelta = delta;
+                primaryDistanceSqr = sqrDistance;
+              }
+            }
+          }
+        }
+
+        float primaryDistance = sqrt(primaryDistanceSqr);
+        CenterDistance = primaryDistance;
+        CenterDerivative = -(primaryDelta / primaryDistance) * CellDensity;
+
+        float opposingDistanceSqr = 200.0;
+        vec3 opposingDelta;
+
+        for (int i = -1; i <= 1; i++) {
+          for (int j = -1; j <= 1; j++) {
+            for (int k = -1; k <= 1; k++) {
+              vec3 delta = (vec3(i, j, k) + randomVector(vec3(cell) + vec3(i, j, k), AngleOffset)) - posInCell;
+              float sqrDistance = dot(delta, delta);
+              if (sqrDistance < opposingDistanceSqr && delta != primaryDelta) {
+                opposingDistanceSqr = sqrDistance;
+                opposingDelta = delta;
+              }
+            }
+          }
+        }
+
+        vec3 pointDelta = primaryDelta - opposingDelta;
+        vec3 midpoint = (primaryDelta + opposingDelta) * 0.5;
+        EdgeDistance = dot(-midpoint, pointDelta);
+        EdgeDerivative = normalize(pointDelta) * CellDensity;
+      }
+
+
+
+      void main() {
+        float CenterDistance;
+        vec3 CenterDerivative;
+        float EdgeDistance;
+        vec3 EdgeDerivative;
+
+        Voronoi_3D(scaledObjPos,time,3.0,CenterDistance,CenterDerivative,EdgeDistance,EdgeDerivative);
+        CenterDerivative = normalMatFrag * CenterDerivative;
+        CenterDerivative = normalize(CenterDerivative)*EdgeDistance;
+
+
+        float DetailCenterDistance;
+        vec3 DetailCenterDerivative;
+        float DetailEdgeDistance;
+        vec3 DetailEdgeDerivative;
+
+        Voronoi_3D(scaledObjPos,time,16.0,DetailCenterDistance,DetailCenterDerivative,DetailEdgeDistance,DetailEdgeDerivative);
+        DetailCenterDerivative = normalMatFrag * DetailCenterDerivative;
+        DetailCenterDerivative = normalize(DetailCenterDerivative)*DetailEdgeDistance;
+
+
+        vec4 albedo = mix(vec4(0.1,0.1,0.3,1.0),vec4(0.3,0.3,1.0,1.0), CenterDistance);
+        albedo = mix(albedo, albedo*2.0, DetailEdgeDistance*0.5);
+
+        vec3 L1 = normalize(Light1.Lp - ec);
+        vec3 L2 = normalize(Light2.Lp - ec);
+        float lit1 = GetLightAttenuation(Light1, L1);
+        float lit2 = GetLightAttenuation(Light2, L2);
+
+        //Tried using derivatives for normals but it looks pretty ugly
+        vec3 normal = mix(DetailCenterDerivative, CenterDerivative, 0.5)*2.0;
+        lit1 *= clamp(dot(normal, L1),0.3,1.0);
+        lit2 *= clamp(dot(normal, L2),0.3,1.0);
+
+        lit1 = clamp(lit1,0.0,1.0);
+        lit2 = clamp(lit2,0.0,1.0);
+
+        float lit = (lit1+lit2)*1.0;
+        lit = mix(0.0,1.0,lit);
+        fragmentColor =albedo*lit;
+        fragmentColor.a = 1.0;
+//        fragmentColor.rgb = vec3(length(normal));
+      }
   </script>
   
 </head>

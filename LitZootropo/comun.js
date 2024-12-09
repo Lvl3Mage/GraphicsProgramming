@@ -1,12 +1,13 @@
 //
 // Funciones que son comunes a los diversos ejemplos con los que vas a trabajar
 //
-var  gl, program;
+var  gl;
+let activeProgram = -1;
+let programs = [];
 
 // variables para gobernar posición y parámetros de la cámara
 var myZeta = 0.0, myPhi = Math.PI/2.0, radius = 4.0, fovy = 1.0;
 
-var uniformIdxs = new Map();
 var texturesId = [];
 
 // control del número de atributos por vértice
@@ -65,24 +66,34 @@ function initShader(shaderId, shaderType){
   }
   return shader;
 }
-function useShaders(vertexShaderId,fragmentShaderId){
+function createProgram(vertexShaderId,fragmentShaderId){
   if(shaderLookup[vertexShaderId] === undefined){
     console.error(`${vertexShaderId} not defined`);
   }
   if(shaderLookup[fragmentShaderId] === undefined){
     console.error(`${fragmentShaderId} not defined`);
   }
-  program = gl.createProgram();
-  gl.attachShader(program, shaderLookup[vertexShaderId]);
-  gl.attachShader(program, shaderLookup[fragmentShaderId]);
+  let newProg = gl.createProgram();
+  gl.attachShader(newProg, shaderLookup[vertexShaderId]);
+  gl.attachShader(newProg, shaderLookup[fragmentShaderId]);
 
-  gl.linkProgram(program);
-
-  gl.useProgram(program);
+  gl.linkProgram(newProg);
+  programs.push({
+    program: newProg,
+    uniforms: new Map(),
+    attributes: -1,
+  });
+  return programs.length-1;
+}
+function setActiveProgram(programIndex){
+  activeProgram = programIndex;
+  gl.useProgram(programs[activeProgram].program);
 }
 
 function initAttributesRefs (...attrs) {
 
+  let programData = programs[activeProgram];
+  let program = programData.program;
   for (let attr of attrs) {
 
     var idx = gl.getAttribLocation (program, attr);
@@ -103,7 +114,7 @@ function initAttributesRefs (...attrs) {
     }
   }
 
-  attributes = attrs.length - 1;
+  programData.attributes = attrs.length - 1;
 
 }
 
@@ -142,7 +153,8 @@ function initPrimitives (...modelos) {
 // 
 function initUniformRefs (...uniforms) {
 
-  for (let uniform of uniforms) uniformIdxs.set (uniform, gl.getUniformLocation(program, uniform));
+  let programData = programs[activeProgram];
+  for (let uniform of uniforms) programData.uniforms.set (uniform, gl.getUniformLocation(programData.program, uniform));
 
 }
 
@@ -158,7 +170,8 @@ function concat(...M) {
 
 function setUniform (name, value) {
 
-  var ref = uniformIdxs.get(name);
+  let uniforms = programs[activeProgram].uniforms;
+  var ref = uniforms.get(name);
 
   switch (value.length) {
     case 16: gl.uniformMatrix4fv(ref, false, value); break;
@@ -176,13 +189,14 @@ function setUniform (name, value) {
 // Esta función ordena el dibujado del modelo
 //
 function draw (model) {
-
-  var nAttr = (attributes == POSITION ? 3 : (attributes == POSTION_NORMAL ? 6 : 8));
+  let programData = programs[activeProgram];
+  let program = programData.program;
+  var nAttr = (programData.attributes == POSITION ? 3 : (programData.attributes == POSTION_NORMAL ? 6 : 8));
 
   // selecciona el vector de vértices que se ha de utilizar para dibujar el modelo
   gl.bindBuffer(gl.ARRAY_BUFFER, model.idBufferVertices);
 
-  switch(attributes) {
+  switch(programData.attributes) {
     case POSITION_NORMAL_TEXCOORDS: gl.vertexAttribPointer (program.vertexTexcoordsAttribute, 2, gl.FLOAT, false, nAttr*4, 6*4);
     case POSTION_NORMAL: gl.vertexAttribPointer (program.vertexNormalAttribute, 3, gl.FLOAT, false, nAttr*4, 3*4);
     case POSITION: gl.vertexAttribPointer (program.vertexPositionAttribute, 3, gl.FLOAT, false, nAttr*4, 0);
@@ -204,7 +218,9 @@ function draw (model) {
   }
 
 }
-
+function getOrthoProjectionMatrix (size = 1) {
+  return mat4.ortho(mat4.create(), -size, size, -size, size, 0.1, 100.0);
+}
 //
 // Obtiene la matriz de transformación de la proyección perspectiva
 //
